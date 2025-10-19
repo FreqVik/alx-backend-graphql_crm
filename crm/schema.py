@@ -5,6 +5,9 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 from crm.models import Customer, Product, Order
 from django.utils import timezone
+from graphene_django.filter import DjangoFilterConnectionField
+from crm.filters import CustomerFilter, ProductFilter, OrderFilter
+from graphene import relay
 
 
 # ---------- GraphQL Types ----------
@@ -189,3 +192,46 @@ class Mutation(graphene.ObjectType):
     bulk_create_customers = BulkCreateCustomers.Field()
     create_product = CreateProduct.Field()
     create_order = CreateOrder.Field()
+
+
+class CustomerNode(graphene.ObjectType):
+    class Meta:
+        name = "CustomerNode"
+
+
+class ProductNode(graphene.ObjectType):
+    class Meta:
+        name = "ProductNode"
+
+
+class OrderNode(graphene.ObjectType):
+    class Meta:
+        name = "OrderNode"
+
+
+class Query(graphene.ObjectType):
+    all_customers = DjangoFilterConnectionField(CustomerType, filterset_class=CustomerFilter)
+    all_products = DjangoFilterConnectionField(ProductType, filterset_class=ProductFilter)
+    all_orders = DjangoFilterConnectionField(OrderType, filterset_class=OrderFilter)
+    order_by = graphene.String(required=False)
+
+    def resolve_all_customers(self, info, **kwargs):
+        order_by = kwargs.get("order_by")
+        qs = Customer.objects.all()
+        if order_by:
+            qs = qs.order_by(order_by)
+        return qs
+
+    def resolve_all_products(self, info, **kwargs):
+        order_by = kwargs.get("order_by")
+        qs = Product.objects.all()
+        if order_by:
+            qs = qs.order_by(order_by)
+        return qs
+
+    def resolve_all_orders(self, info, **kwargs):
+        order_by = kwargs.get("order_by")
+        qs = Order.objects.all()
+        if order_by:
+            qs = qs.order_by(order_by)
+        return qs
