@@ -1,8 +1,17 @@
 import requests
 from datetime import datetime, timedelta
+from gql import gql, Client
+from gql.transport.requests import RequestsHTTPTransport
 
 GRAPHQL_ENDPOINT = "http://localhost:8000/graphql"
 LOG_FILE = "/tmp/order_reminders_log.txt"
+
+transport = RequestsHTTPTransport(
+    url=GRAPHQL_ENDPOINT,
+    use_json=True,
+)
+
+client = Client(transport=transport, auto_schema=True)
 
 def fetch_recent_orders():
     """Query GraphQL endpoint for orders from the last 7 days."""
