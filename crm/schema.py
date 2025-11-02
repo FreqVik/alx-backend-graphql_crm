@@ -52,6 +52,34 @@ class CreateOrderInput(graphene.InputObjectType):
     order_date = graphene.DateTime(required=False)
 
 
+class UpdateLowStockProducts(graphene.Mutation):
+    """
+    Mutation to restock products with stock < 10 by adding +10.
+    Returns a message and the list of updated products.
+    """
+    message = graphene.String()
+    updated_products = graphene.List(lambda: ProductType)
+
+    @classmethod
+    def mutate(cls, root, info):
+        low_stock_products = Product.objects.filter(stock__lt=10)
+        updated = []
+
+        for product in low_stock_products:
+            product.stock += 10
+            product.save()
+            updated.append(product)
+
+        message = (
+            f"{len(updated)} product(s) restocked successfully."
+            if updated else "No low-stock products found."
+        )
+
+        return UpdateLowStockProducts(
+            message=message,
+            updated_products=updated
+        )
+
 # ---------- Utility Validators ----------
 def validate_phone(phone):
     if phone and not re.match(r"^(\+?\d{7,15}|(\d{3}-\d{3}-\d{4}))$", phone):
@@ -192,6 +220,7 @@ class Mutation(graphene.ObjectType):
     bulk_create_customers = BulkCreateCustomers.Field()
     create_product = CreateProduct.Field()
     create_order = CreateOrder.Field()
+    update_low_stock_products = UpdateLowStockProducts.Field()
 
 
 class CustomerNode(graphene.ObjectType):

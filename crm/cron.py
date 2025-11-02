@@ -2,32 +2,36 @@ from datetime import datetime
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
 
-LOG_FILE = "/tmp/crm_heartbeat_log.txt"
 GRAPHQL_ENDPOINT = "http://localhost:8000/graphql"
+LOG_FILE = "/tmp/low_stock_updates_log.txt"
 
-def log_crm_heartbeat():
-    """Logs CRM health every 5 minutes and verifies GraphQL connectivity."""
+def update_low_stock():
     timestamp = datetime.now().strftime("%d/%m/%Y-%H:%M:%S")
-    status = "Unknown"
 
     try:
-        # Configure gql transport
-        transport = RequestsHTTPTransport(
-            url=GRAPHQL_ENDPOINT,
-            verify=True,
-            retries=3,
-        )
-
+        transport = RequestsHTTPTransport(url=GRAPHQL_ENDPOINT, verify=True, retries=3)
         client = Client(transport=transport, fetch_schema_from_transport=False)
 
-        # Simple GraphQL query to check health
-        query = gql("{ hello }")
-        response = client.execute(query)
-        status = f"GraphQL OK - Response: {response.get('hello', 'No reply')}"
+        mutation = gql("""
+            mutation {
+                updateLowStockProducts {
+                    message
+                    updatedProducts {
+                        name
+                        stock
+                    }
+                }
+            }
+        """)
+
+        response = client.execute(mutation)
+        data = response["updateLowStockProducts"]
+
+        with open(LOG_FILE, "a") as f:
+            f.write(f"[{timestamp}] {data['message']}\n")
+            for p in data.get("updatedProducts", []):
+                f.write(f" - {p['name']}: new stock = {p['stock']}\n")
 
     except Exception as e:
-        status = f"GraphQL Error - {e}"
-
-    # Append heartbeat message to log file
-    with open(LOG_FILE, "a") as f:
-        f.write(f"{timestamp} CRM is alive - {status}\n")
+        with open(LOG_FILE, "a") as f:
+            f.write(f"[{timestamp}] Error: {e}\n")
